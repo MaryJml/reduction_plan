@@ -112,4 +112,94 @@ In a production system, these values should be masked in logs and protected acco
 
 For this assessment, logging should avoid unnecessarily printing full account details.
 
+## User Stories
 
+### Story 1: Submit a Reduction Plan
+
+As a client of the reduction plan service,  
+I want to submit a reduction plan for an account,  
+so that the customer's requested limit reduction can be processed.
+
+#### Acceptance Criteria
+
+Given a valid account number, sort code, and reduction amount,  
+when the client submits a reduction plan,  
+then the service should publish a reduction plan event to Kafka,  
+and return `202 Accepted`.
+
+Given the submitted request is invalid,  
+when the client submits the request,  
+then the service should return `400 Bad Request`,  
+and the request should not be published to Kafka.
+
+---
+
+### Story 2: Process a Reduction Plan Event
+
+As the reduction plan service,  
+I want to consume reduction plan events from Kafka,  
+so that submitted plans can be processed asynchronously.
+
+#### Acceptance Criteria
+
+Given a valid reduction plan event exists in Kafka,  
+when the consumer receives the event,  
+then the service should process the event,  
+store the reduction plan in the database,  
+and mark the stored plan as `ACTIVE`.
+
+Given the event cannot be processed,  
+when the consumer handles the event,  
+then the failure should be logged and handled according to the configured retry strategy.
+
+---
+
+### Story 3: Retrieve the Latest Reduction Plan
+
+As a client of the reduction plan service,  
+I want to retrieve the latest reduction plan for an account,  
+so that I can view the most recent reduction request for that account.
+
+#### Acceptance Criteria
+
+Given one or more reduction plans exist for an account,  
+when the client requests the latest reduction plan,  
+then the service should return the most recently created plan for the given account number and sort code.
+
+Given no reduction plan exists for the account,  
+when the client requests the latest reduction plan,  
+then the service should return `404 Not Found`.
+
+---
+
+### Story 4: Prevent Duplicate Event Processing
+
+As the reduction plan service,  
+I want duplicate Kafka events to be ignored,  
+so that the same reduction plan is not processed more than once.
+
+#### Acceptance Criteria
+
+Given an event has already been processed,  
+when the same event is consumed again,  
+then the service should not create a duplicate reduction plan.
+
+This story is treated as a reliability improvement. The event model includes an `eventId` so that idempotency can be implemented cleanly.
+
+---
+
+### Story 5: Validate Business Input
+
+As the reduction plan service,  
+I want to validate submitted reduction plan requests,  
+so that invalid or incomplete requests are rejected before an event is published.
+
+#### Acceptance Criteria
+
+The service should reject requests where:
+
+- `accountNumber` is missing or invalid.
+- `sortCode` is missing or invalid.
+- `reductionAmount` is missing, zero, or negative.
+
+Invalid requests should return `400 Bad Request`.
