@@ -203,3 +203,84 @@ The service should reject requests where:
 - `reductionAmount` is missing, zero, or negative.
 
 Invalid requests should return `400 Bad Request`.
+
+## Delivery Plan
+
+The implementation is delivered in phases to keep the scope manageable while still leaving clear extension points for a more production-ready service.
+
+### Phase 1: Core MVP
+
+The goal of this phase is to implement the minimum end-to-end event-driven flow.
+
+Scope:
+
+- Create the Spring Boot project structure.
+- Define request, response, event, domain, and persistence models.
+- Implement `POST /api/reduction-plans`.
+- Publish a reduction plan event to Kafka.
+- Implement a Kafka consumer for reduction plan events.
+- Persist consumed plans to a simple database.
+- Implement `GET /api/reduction-plans/latest`.
+- Add basic unit tests for service logic.
+
+Expected outcome:
+
+A client can submit a valid reduction plan, the service publishes an event, the consumer stores the plan, and the latest plan can be retrieved through the query API.
+
+---
+
+### Phase 2: Validation, Error Handling, and Test Coverage
+
+The goal of this phase is to make the MVP more robust and easier to maintain.
+
+Scope:
+
+- Add request validation using Bean Validation.
+- Add a global exception handler.
+- Return consistent error responses.
+- Add controller tests for REST API behaviour.
+- Add service unit tests.
+- Add integration tests for API and Kafka flow.
+- Document the asynchronous behaviour and eventual consistency model.
+
+Expected outcome:
+
+The service rejects invalid input clearly, has predictable error handling, and includes tests that prove the main behaviours work.
+
+---
+
+### Phase 3: Event-Driven Reliability Improvements
+
+The goal of this phase is to address common reliability concerns in event-driven systems.
+
+Scope:
+
+- Add `eventId` to the event model.
+- Add `eventType`, `eventVersion`, and `occurredAt` to support event evolution.
+- Implement idempotency handling to avoid duplicate processing.
+- Add retry handling for Kafka consumer failures.
+- Optionally add a dead-letter topic for messages that repeatedly fail.
+- Improve logging while avoiding exposure of sensitive account details.
+
+Expected outcome:
+
+The service can handle duplicate events and consumer failures more safely, while keeping the architecture simple and understandable.
+
+---
+
+### Phase 4: Local Development and Documentation
+
+The goal of this phase is to make the project easy to run, review, and discuss during the technical interview.
+
+Scope:
+
+- Add Docker Compose for running Kafka locally.
+- Add clear local setup instructions.
+- Add example curl commands for API testing.
+- Document assumptions and trade-offs.
+- Document future improvements.
+- Ensure README explains the architecture and design decisions.
+
+Expected outcome:
+
+A reviewer can clone the repository, run the service locally, execute the tests, and understand the design decisions without needing additional explanation.
