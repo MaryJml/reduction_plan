@@ -10,7 +10,7 @@ A reduction plan represents a customer request to reduce their account limit. Fo
 - Account number
 - Sort code
 - Reduction amount
-- Status, `PENDING`, `ACTIVE`, `FAIL`
+- Status, `PENDING`, `ACTIVE`
 
 The key requirement is that the submitted plan should not be persisted directly by the API layer. Instead, the API publishes an event to Kafka. A Kafka consumer then consumes the event, processes the plan, and stores it in the database.
 
@@ -57,17 +57,25 @@ Because processing is asynchronous, the submit endpoint returns `202 Accepted` r
 
 ### Plan Status
 
-The initial supported statuses are:
+The initial supported plan statuses are:
 
 - `PENDING`
 - `ACTIVE`
 
 Assumption:
 
-- A plan is submitted as `PENDING`.
-- After the Kafka consumer successfully processes and stores the plan, it becomes `ACTIVE`.
+- A submitted plan is represented as a `PENDING` event.
+- After the Kafka consumer successfully processes and stores the plan, the stored plan becomes `ACTIVE`.
 
-This keeps the state model simple while still showing the difference between request submission and asynchronous processing.
+A `FAILED` plan status is not included in the initial implementation.
+
+This is intentional because not all failures should become plan statuses:
+
+- If the request is invalid, for example the reduction amount is zero or negative, the request is rejected with `400 Bad Request`. No plan is created and no Kafka event is published.
+- If publishing to Kafka fails, the API should return an error such as `503 Service Unavailable` or `500 Internal Server Error`. The request should not be reported as accepted because the asynchronous process has not started.
+- If the Kafka consumer fails while processing an already-published event, the failure should be handled through retry logic and, optionally, a dead-letter topic.
+
+In a more complete production system, `FAILED` could be introduced either as a plan status or as a separate event-processing status. For this assessment, keeping the plan statuses to `PENDING` and `ACTIVE` avoids mixing business state with technical processing failures.
 
 ### Latest Plan Definition
 
