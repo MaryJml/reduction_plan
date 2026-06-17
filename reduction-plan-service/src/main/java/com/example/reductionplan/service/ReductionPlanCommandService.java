@@ -20,9 +20,12 @@ public class ReductionPlanCommandService {
     private final ReductionPlanEventPublisher eventPublisher;
     private final Clock clock;
 
-    public ReductionPlanCommandService(ReductionPlanEventPublisher eventPublisher) {
+    public ReductionPlanCommandService(
+            ReductionPlanEventPublisher eventPublisher,
+            Clock clock
+    ) {
         this.eventPublisher = eventPublisher;
-        this.clock = Clock.systemUTC();
+        this.clock = clock;
     }
 
     public CreateReductionPlanResponse submit(CreateReductionPlanRequest request) {
