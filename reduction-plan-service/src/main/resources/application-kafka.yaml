@@ -1,3 +1,5 @@
 app:
   messaging:
     publisher: kafka
+    consumer:
+      enabled: true
