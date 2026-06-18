@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.kafka.common.KafkaException;
 
 @Component
 @ConditionalOnProperty(
@@ -58,7 +59,7 @@ public class KafkaReductionPlanEventPublisher implements ReductionPlanEventPubli
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new EventPublishingException("Interrupted while publishing reduction plan event", exception);
-        } catch (ExecutionException | TimeoutException exception) {
+        } catch (ExecutionException | TimeoutException | KafkaException exception) {
             throw new EventPublishingException("Failed to publish reduction plan event to Kafka", exception);
         }
     }
