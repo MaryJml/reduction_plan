@@ -235,13 +235,13 @@ The goal of this phase is to make the MVP more robust and easier to maintain.
 
 Scope:
 
-- Add request validation using Bean Validation.
-- Add a global exception handler.
-- Return consistent error responses.
-- Add controller tests for REST API behaviour.
-- Add service unit tests.
-- Add integration tests for API and Kafka flow.
-- Document the asynchronous behaviour and eventual consistency model.
+- [x] Add request validation using Bean Validation.
+- [ ] Add a global exception handler.
+- [ ] Return consistent error responses.
+- [ ] Add controller tests for REST API behaviour.
+- [ ] Add service unit tests.
+- [ ] Add integration tests for API and Kafka flow.
+- [ ] Document the asynchronous behaviour and eventual consistency model.
 
 Expected outcome:
 
@@ -255,12 +255,12 @@ The goal of this phase is to address common reliability concerns in event-driven
 
 Scope:
 
-- Add `eventId` to the event model.
-- Add `eventType`, `eventVersion`, and `occurredAt` to support event evolution.
-- Implement idempotency handling to avoid duplicate processing.
-- Add retry handling for Kafka consumer failures.
-- Optionally add a dead-letter topic for messages that repeatedly fail.
-- Improve logging while avoiding exposure of sensitive account details.
+- [x] Add `eventId` to the event model.
+- [x] Add `eventType`, `eventVersion`, and `occurredAt` to support event evolution.
+- [ ] Implement idempotency handling to avoid duplicate processing.
+- [ ] Add retry handling for Kafka consumer failures.
+- [ ] Optionally add a dead-letter topic for messages that repeatedly fail.
+- [ ] Improve logging while avoiding exposure of sensitive account details.
 
 Expected outcome:
 
@@ -274,12 +274,12 @@ The goal of this phase is to make the project easy to run, review, and discuss d
 
 Scope:
 
-- Add Docker Compose for running Kafka locally.
-- Add clear local setup instructions.
-- Add example curl commands for API testing.
-- Document assumptions and trade-offs.
-- Document future improvements.
-- Ensure README explains the architecture and design decisions.
+- [x] Add Docker Compose for running Kafka locally.
+- [ ] Add clear local setup instructions.
+- [ ] Add example curl commands for API testing.
+- [ ] Document assumptions and trade-offs.
+- [ ] Document future improvements.
+- [x] Ensure README explains the architecture and design decisions.
 
 Expected outcome:
 
