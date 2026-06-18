@@ -208,20 +208,20 @@ Invalid requests should return `400 Bad Request`.
 
 The implementation is delivered in phases to keep the scope manageable while still leaving clear extension points for a more production-ready service.
 
-### Phase 1: Core MVP
+### Phase 1: Core MVP (Done)
 
 The goal of this phase is to implement the minimum end-to-end event-driven flow.
 
 Scope:
 
-- Create the Spring Boot project structure.
-- Define request, response, event, domain, and persistence models.
-- Implement `POST /api/reduction-plans`.
-- Publish a reduction plan event to Kafka.
-- Implement a Kafka consumer for reduction plan events.
-- Persist consumed plans to a simple database.
-- Implement `GET /api/reduction-plans/latest`.
-- Add basic unit tests for service logic.
+- [x] Create the Spring Boot project structure. 
+- [x] Define request, response, event, domain, and persistence models.
+- [x] Implement `POST /api/reduction-plans`.
+- [x] Publish a reduction plan event to Kafka.
+- [x] Implement a Kafka consumer for reduction plan events.
+- [x] Persist consumed plans to a simple database.
+- [x] Implement `GET /api/reduction-plans/latest`.
+- [x] Add basic unit tests for service logic.
 
 Expected outcome:
 
