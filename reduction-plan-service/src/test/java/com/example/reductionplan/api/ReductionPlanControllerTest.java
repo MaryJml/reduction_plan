@@ -72,7 +72,12 @@ class ReductionPlanControllerTest {
         mockMvc.perform(post("/api/reduction-plans")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)))
+                .andExpect(jsonPath("$.error", is("Bad Request")))
+                .andExpect(jsonPath("$.message", is("Validation failed")))
+                .andExpect(jsonPath("$.path", is("/api/reduction-plans")))
+                .andExpect(jsonPath("$.fieldErrors.reductionAmount", is("Reduction Amount must be greater than zero")));
     }
 
     @Test
@@ -188,6 +193,21 @@ class ReductionPlanControllerTest {
         mockMvc.perform(get("/api/reduction-plans/latest")
                         .param("accountNumber", "12345678")
                         .param("sortCode", "12-34-56"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status", is(404)))
+                .andExpect(jsonPath("$.error", is("Not Found")))
+                .andExpect(jsonPath("$.message", is("No reduction plan found for the requested account")))
+                .andExpect(jsonPath("$.path", is("/api/reduction-plans/latest")));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenRequiredQueryParameterIsMissing() throws Exception {
+        mockMvc.perform(get("/api/reduction-plans/latest")
+                        .param("accountNumber", "12345678"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status", is(400)))
+                .andExpect(jsonPath("$.error", is("Bad Request")))
+                .andExpect(jsonPath("$.message", is("Required request parameter is missing: sortCode")))
+                .andExpect(jsonPath("$.path", is("/api/reduction-plans/latest")));
     }
 }

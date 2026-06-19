@@ -1,6 +1,236 @@
 # Reduction Plan Service
 Build a RESTful service that manages customer limit reduction plans using event-driven architecture.
 
+The service accepts a reduction plan request through a REST API, publishes a Kafka event, consumes that event asynchronously, stores the processed plan in a database, and exposes an endpoint to retrieve the latest plan for an account.
+
+---
+
+## Running the Service Locally
+
+### Prerequisites
+
+Before running the project, make sure you have:
+
+- Java 17 or later
+- Docker Desktop running
+- Git
+- The Maven Wrapper included in this project
+
+### Clone the repository
+
+```bash
+git clone git@github.com:MaryJml/reduction_plan.git
+cd reduction-plan
+cd reduction-plan-service
+```
+### Run all tests
+
+```bash
+./mvnw clean test
+```
+The test suite includes service tests, controller tests, persistence tests, and a Kafka integration test using Testcontainers.
+
+Docker needs to be running for the Kafka integration test.
+
+---
+
+### Start Kafka locally
+
+```bash
+docker compose up -d
+```
+Check that Kafka is running:
+
+```bash
+docker compose ps
+```
+Expected output should show the Kafka container as `Up`.
+
+### Start the application with Kafka enabled
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=kafka
+```
+The kafka profile enables the real Kafka publisher and Kafka consumer.
+
+The service runs on: `http://localhost:8080`
+
+
+### Stop Kafka
+
+```bash
+docker compose down
+```
+---
+
+## Example API Requests
+
+Before do the following make sure the application is running and docker is open.
+
+### Submit a reduction plan
+
+```bash
+curl -i -X POST http://localhost:8080/api/reduction-plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountNumber": "12345678",
+    "sortCode": "12-34-56",
+    "reductionAmount": 500.00
+  }'
+```
+Expected response:
+
+```bash
+HTTP/1.1 202
+```
+
+Example response body:
+
+```bash
+{
+  "planId": "generated-plan-id",
+  "eventId": "generated-event-id",
+  "status": "PENDING",
+  "message": "Reduction plan submitted for processing"
+}
+```
+
+The 202 Accepted response is intentional. It means the request has been accepted and the event has been published. The plan is stored later by the Kafka consumer.
+
+### Retrieve the latest reduction plan
+
+After submitting a plan, wait briefly for the consumer to process the event, then run:
+
+```bash
+curl -i "http://localhost:8080/api/reduction-plans/latest?accountNumber=12345678&sortCode=12-34-56"
+```
+Expected response:
+
+```bash
+HTTP/1.1 202
+```
+
+Example response body:
+
+```bash
+{
+  "planId": "generated-plan-id",
+  "accountNumber": "12345678",
+  "sortCode": "12-34-56",
+  "reductionAmount": 500.00,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-18T10:00:00Z"
+}
+```
+
+### Invalid request example
+
+```bash
+curl -i -X POST http://localhost:8080/api/reduction-plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountNumber": "12345678",
+    "sortCode": "12-34-56",
+    "reductionAmount": -100.00
+  }'
+```
+
+Expected response:
+
+```bash
+HTTP/1.1 400
+```
+
+Example response body:
+
+```bash
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/reduction-plans",
+  "fieldErrors": {
+    "reductionAmount": "reductionAmount must be greater than zero"
+  }
+}
+```
+### Plan not found example
+
+```bash
+curl -i "http://localhost:8080/api/reduction-plans/latest?accountNumber=00000000&sortCode=00-00-00"
+```
+Expected response:
+
+```bash
+HTTP/1.1 400
+```
+
+---
+
+## Architecture Overview
+
+The service uses a simple event-driven architecture.
+
+```text
+Client
+  -> POST /api/reduction-plans
+  -> ReductionPlanCommandService
+  -> Kafka producer
+  -> reduction-plan-events topic
+  -> Kafka consumer
+  -> ReductionPlanProcessor
+  -> H2 database
+  -> GET /api/reduction-plans/latest
+```
+The main responsibilities are separated as follows:
+
+- The controller handles HTTP request and response mapping.
+- The command service creates the reduction plan event.
+- The Kafka publisher sends the event to Kafka.
+- The Kafka consumer receives reduction plan events.
+- The processor applies the business processing and stores the plan.
+- The repository layer handles database access.
+- The query service retrieves the latest stored plan for an account.
+
+This keeps the REST API layer, messaging layer, business logic, and persistence logic separate.
+
+## Asynchronous Behaviour and Eventual Consistency
+
+Submitting a reduction plan is asynchronous.
+
+When a client calls:
+
+```text
+POST /api/reduction-plans
+```
+
+the service validates the request, creates a reduction plan event, publishes it to Kafka, and returns:
+
+```text
+202 Accepted
+```
+
+At this point, the plan has been accepted for processing, but it may not have been stored in the database yet.
+
+The Kafka consumer processes the event shortly afterwards and stores the plan as `ACTIVE`.
+
+This means the query endpoint is eventually consistent:
+
+```text
+GET /api/reduction-plans/latest
+```
+
+may not return the new plan immediately if it is called before the consumer has finished processing the event. In local testing this delay is usually very small, but the design does not rely on synchronous persistence.
+
+The status transition is:
+
+```text
+Submitted event: PENDING  
+Stored plan after consumer processing: ACTIVE
+```
+
+---
+
 ## Requirement Analysis
 
 This service manages customer limit reduction plans using an event-driven architecture.
@@ -111,6 +341,34 @@ Account number and sort code are treated as sensitive data.
 In a production system, these values should be masked in logs and protected according to the organisation's data-handling policies.
 
 For this assessment, logging should avoid unnecessarily printing full account details.
+
+## Reliability Notes
+
+Each reduction plan event includes:
+
+- eventId
+- eventType
+- eventVersion
+- planId
+- occurredAt
+
+These fields make the event easier to trace and give the event contract room to evolve.
+
+The consumer also implements idempotency using eventId. Successfully processed event identifiers are stored in a processed_events table. If the same Kafka event is delivered again, the processor detects that it has already been handled and skips it without creating a duplicate reduction plan.
+
+This is useful because Kafka consumers should generally be designed with at-least-once delivery in mind.
+
+## Testing
+
+The project includes:
+
+- Service unit tests
+- Controller tests for REST API behaviour
+- Persistence-focused tests
+- Kafka integration testing with Testcontainers
+
+The Kafka integration test starts a real Kafka broker in Docker, submits a reduction plan through the REST endpoint, waits for the consumer to process the event, and verifies that the latest reduction plan can be retrieved from the query endpoint.
+
 
 ## User Stories
 
@@ -236,12 +494,12 @@ The goal of this phase is to make the MVP more robust and easier to maintain.
 Scope:
 
 - [x] Add request validation using Bean Validation.
-- [ ] Add a global exception handler.
-- [ ] Return consistent error responses.
-- [ ] Add controller tests for REST API behaviour.
-- [ ] Add service unit tests.
-- [ ] Add integration tests for API and Kafka flow.
-- [ ] Document the asynchronous behaviour and eventual consistency model.
+- [x] Add a global exception handler.
+- [x] Return consistent error responses.
+- [x] Add controller tests for REST API behaviour.
+- [x] Add service unit tests.
+- [x] Add integration tests for API and Kafka flow.
+- [x] Document the asynchronous behaviour and eventual consistency model.
 
 Expected outcome:
 
@@ -257,7 +515,7 @@ Scope:
 
 - [x] Add `eventId` to the event model.
 - [x] Add `eventType`, `eventVersion`, and `occurredAt` to support event evolution.
-- [ ] Implement idempotency handling to avoid duplicate processing.
+- [x] Implement idempotency handling to avoid duplicate processing.
 - [ ] Add retry handling for Kafka consumer failures.
 - [ ] Optionally add a dead-letter topic for messages that repeatedly fail.
 - [ ] Improve logging while avoiding exposure of sensitive account details.
@@ -275,12 +533,27 @@ The goal of this phase is to make the project easy to run, review, and discuss d
 Scope:
 
 - [x] Add Docker Compose for running Kafka locally.
-- [ ] Add clear local setup instructions.
-- [ ] Add example curl commands for API testing.
-- [ ] Document assumptions and trade-offs.
-- [ ] Document future improvements.
+- [x] Add clear local setup instructions.
+- [x] Add example curl commands for API testing.
+- [x] Document assumptions and trade-offs.
+- [x] Document future improvements.
 - [x] Ensure README explains the architecture and design decisions.
 
 Expected outcome:
 
 A reviewer can clone the repository, run the service locally, execute the tests, and understand the design decisions without needing additional explanation.
+
+---
+
+## Future Improvements
+
+Given more time, the next improvements would be:
+
+- Add Kafka consumer retry configuration.
+- Add a dead-letter topic for events that repeatedly fail.
+- Add structured logging with correlation identifiers.
+- Replace H2 with a production database such as PostgreSQL.
+- Add database migration tooling such as Flyway or Liquibase.
+- Add OpenAPI documentation for the REST endpoints.
+- Add authentication and authorization if this service were exposed beyond a local environment.
+- Add event schema compatibility checks if the event contract evolves.
