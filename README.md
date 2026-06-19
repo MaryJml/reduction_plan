@@ -1,6 +1,172 @@
 # Reduction Plan Service
 Build a RESTful service that manages customer limit reduction plans using event-driven architecture.
 
+The service accepts a reduction plan request through a REST API, publishes a Kafka event, consumes that event asynchronously, stores the processed plan in a database, and exposes an endpoint to retrieve the latest plan for an account.
+
+---
+
+## Running the Service Locally
+
+### Prerequisites
+
+Before running the project, make sure you have:
+
+- Java 17 or later
+- Docker Desktop running
+- Git
+- The Maven Wrapper included in this project
+
+### Clone the repository
+
+```bash
+git clone git@github.com:MaryJml/reduction_plan.git
+cd reduction-plan
+cd reduction-plan-service
+```
+### Run all tests
+
+```bash
+./mvnw clean test
+```
+The test suite includes service tests, controller tests, persistence tests, and a Kafka integration test using Testcontainers.
+
+Docker needs to be running for the Kafka integration test.
+
+---
+
+### Start Kafka locally
+
+```bash
+docker compose up -d
+```
+Check that Kafka is running:
+
+```bash
+docker compose ps
+```
+Expected output should show the Kafka container as `Up`.
+
+### Start the application with Kafka enabled
+
+```bash
+./mvnw spring-boot:run -Dspring-boot.run.profiles=kafka
+```
+The kafka profile enables the real Kafka publisher and Kafka consumer.
+
+The service runs on: `http://localhost:8080`
+
+
+### Stop Kafka
+
+```bash
+docker compose down
+```
+---
+
+## Example API Requests
+
+Before do the following make sure the application is running and docker is open.
+
+### Submit a reduction plan
+
+```bash
+curl -i -X POST http://localhost:8080/api/reduction-plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountNumber": "12345678",
+    "sortCode": "12-34-56",
+    "reductionAmount": 500.00
+  }'
+```
+Expected response:
+
+```bash
+HTTP/1.1 202
+```
+
+Example response body:
+
+```bash
+{
+  "planId": "generated-plan-id",
+  "eventId": "generated-event-id",
+  "status": "PENDING",
+  "message": "Reduction plan submitted for processing"
+}
+```
+
+The 202 Accepted response is intentional. It means the request has been accepted and the event has been published. The plan is stored later by the Kafka consumer.
+
+### Retrieve the latest reduction plan
+
+After submitting a plan, wait briefly for the consumer to process the event, then run:
+
+```bash
+curl -i "http://localhost:8080/api/reduction-plans/latest?accountNumber=12345678&sortCode=12-34-56"
+```
+Expected response:
+
+```bash
+HTTP/1.1 202
+```
+
+Example response body:
+
+```bash
+{
+  "planId": "generated-plan-id",
+  "accountNumber": "12345678",
+  "sortCode": "12-34-56",
+  "reductionAmount": 500.00,
+  "status": "ACTIVE",
+  "createdAt": "2026-06-18T10:00:00Z"
+}
+```
+
+### Invalid request example
+
+```bash
+curl -i -X POST http://localhost:8080/api/reduction-plans \
+  -H "Content-Type: application/json" \
+  -d '{
+    "accountNumber": "12345678",
+    "sortCode": "12-34-56",
+    "reductionAmount": -100.00
+  }'
+```
+
+Expected response:
+
+```bash
+HTTP/1.1 400
+```
+
+Example response body:
+
+```bash
+{
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Validation failed",
+  "path": "/api/reduction-plans",
+  "fieldErrors": {
+    "reductionAmount": "reductionAmount must be greater than zero"
+  }
+}
+```
+### Plan not found example
+
+```bash
+curl -i "http://localhost:8080/api/reduction-plans/latest?accountNumber=00000000&sortCode=00-00-00"
+```
+Expected response:
+
+```bash
+HTTP/1.1 400
+```
+
+---
+
 ## Requirement Analysis
 
 This service manages customer limit reduction plans using an event-driven architecture.
