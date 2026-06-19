@@ -236,10 +236,10 @@ The goal of this phase is to make the MVP more robust and easier to maintain.
 Scope:
 
 - [x] Add request validation using Bean Validation.
-- [ ] Add a global exception handler.
-- [ ] Return consistent error responses.
-- [ ] Add controller tests for REST API behaviour.
-- [ ] Add service unit tests.
+- [x] Add a global exception handler.
+- [x] Return consistent error responses.
+- [x] Add controller tests for REST API behaviour.
+- [x] Add service unit tests.
 - [ ] Add integration tests for API and Kafka flow.
 - [ ] Document the asynchronous behaviour and eventual consistency model.
 
@@ -257,7 +257,7 @@ Scope:
 
 - [x] Add `eventId` to the event model.
 - [x] Add `eventType`, `eventVersion`, and `occurredAt` to support event evolution.
-- [ ] Implement idempotency handling to avoid duplicate processing.
+- [x] Implement idempotency handling to avoid duplicate processing.
 - [ ] Add retry handling for Kafka consumer failures.
 - [ ] Optionally add a dead-letter topic for messages that repeatedly fail.
 - [ ] Improve logging while avoiding exposure of sensitive account details.
