@@ -240,7 +240,7 @@ Scope:
 - [x] Return consistent error responses.
 - [x] Add controller tests for REST API behaviour.
 - [x] Add service unit tests.
-- [ ] Add integration tests for API and Kafka flow.
+- [x] Add integration tests for API and Kafka flow.
 - [ ] Document the asynchronous behaviour and eventual consistency model.
 
 Expected outcome:
